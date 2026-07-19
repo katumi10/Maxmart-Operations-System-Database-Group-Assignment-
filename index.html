@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MaxMart Operations Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    :root {
+        --primary: #2563eb;
+        --primary-hover: #1d4ed8;
+        --primary-light: #eff6ff;
+        --navy: #0f172a;
+        --rail: #14213d;
+        --rail-hover: #1c2c4f;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --danger-hover: #dc2626;
+        --dark: #0f172a;
+        --bg: #f1f5f9;
+        --surface: #ffffff;
+        --border: #e2e8f0;
+        --text-muted: #64748b;
+        --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+    html, body { height: 100%; }
+    body { background-color: var(--bg); color: var(--dark); overflow: hidden; }
+    button { font-family: inherit; cursor: pointer; }
+    input, select, textarea { font-family: inherit; }
+    ::selection { background: var(--primary-light); color: var(--primary-hover); }
+
+    /* ---------- shared bits ---------- */
+    .nums { font-variant-numeric: tabular-nums; }
+    .eyebrow { text-transform: uppercase; letter-spacing: 0.09em; font-size: 0.72rem; font-weight: 700; color: var(--text-muted); }
+    .hidden { display: none !important; }
+
+    /* ================= LOGIN SCREEN ================= */
+    #loginScreen {
+        position: fixed; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center;
+        background:
+            radial-gradient(circle at 15% 20%, rgba(37,99,235,0.25), transparent 45%),
+            radial-gradient(circle at 85% 80%, rgba(29,78,216,0.22), transparent 45%),
+            var(--navy);
+        z-index: 500;
+    }
+    .login-card {
+        background: var(--surface); width: 100%; max-width: 380px; border-radius: 18px;
+        padding: 2.25rem 2.25rem 2rem; box-shadow: 0 24px 60px -12px rgba(0,0,0,0.45);
+        text-align: center;
+    }
+    .login-card .logo-mark { margin: 0 auto 1.1rem; width: 64px; height: 64px; }
+    .login-card h1 { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.02em; }
+    .login-card p.sub { color: var(--text-muted); font-size: 0.88rem; margin-top: 0.3rem; margin-bottom: 1.6rem; }
+    .login-card .form-group { text-align: left; }
+    #loginError {
+        background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; border-radius: 8px;
+        padding: 0.65rem 0.85rem; font-size: 0.83rem; margin-bottom: 1rem; text-align: left; display: none;
+    }
+    .login-hint { margin-top: 1.4rem; font-size: 0.76rem; color: var(--text-muted); line-height: 1.5; }
+    .login-hint code { background: var(--bg); padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.74rem; }
+
+    /* ================= LOGO MARK ================= */
+    .logo-mark { flex-shrink: 0; }
+    .logo-mark svg { width: 100%; height: 100%; display: block; }
+
+    /* ================= APP SHELL ================= */
+    #appShell { display: flex; height: 100vh; }
+
+    .sidebar {
+        width: 248px; flex-shrink: 0; background: var(--rail); color: #cbd5e1;
+        display: flex; flex-direction: column; padding: 1.4rem 1rem; overflow-y: auto;
+    }
+    .sidebar-brand { display: flex; align-items: center; gap: 0.7rem; padding: 0.3rem 0.5rem 1.5rem; }
+    .sidebar-brand .logo-mark { width: 38px; height: 38px; }
+    .sidebar-brand .brand-text h2 { color: #fff; font-size: 1.02rem; font-weight: 800; letter-spacing: -0.01em; line-height: 1.15; }
+    .sidebar-brand .brand-text p { font-size: 0.68rem; color: #7d8bab; letter-spacing: 0.06em; text-transform: uppercase; margin-top: 0.15rem; }
+
+    .nav-list { list-style: none; display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.5rem; }
+    .nav-btn {
+        display: flex; align-items: center; gap: 0.7rem; width: 100%; text-align: left;
+        background: transparent; border: none; color: #a9b6d3; padding: 0.62rem 0.75rem;
+        border-radius: 9px; font-size: 0.87rem; font-weight: 500; position: relative;
+        transition: background 0.15s ease, color 0.15s ease;
+    }
+    .nav-btn i { width: 18px; text-align: center; color: #7d8bab; font-size: 0.92rem; transition: color 0.15s ease; }
+    .nav-btn:hover { background: var(--rail-hover); color: #fff; }
+    .nav-btn:hover i { color: #fff; }
+    .nav-btn.active { background: var(--primary); color: #fff; }
+    .nav-btn.active i { color: #fff; }
+
+    .sidebar-spacer { flex: 1; }
+
+    .user-card {
+        border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem; margin-top: 0.5rem;
+        display: flex; align-items: center; gap: 0.65rem;
+    }
+    .user-avatar {
+        width: 36px; height: 36px; border-radius: 50%; background: var(--primary);
+        color: #fff; display: flex; align-items: center; justify-content: center;
+        font-weight: 700; font-size: 0.82rem; flex-shrink: 0;
+    }
+    .user-meta { flex: 1; min-width: 0; }
+    .user-meta .u-name { color: #fff; font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-meta .u-role { font-size: 0.72rem; color: #7d8bab; }
+    .signout-btn {
+        background: transparent; border: 1px solid rgba(255,255,255,0.15); color: #a9b6d3;
+        width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    }
+    .signout-btn:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+    /* ================= MAIN CONTENT ================= */
+    .content { flex: 1; overflow-y: auto; padding: 2rem 2.5rem; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .page-head { margin-bottom: 1.6rem; }
+    .page-head h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
+    .page-head p { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.2rem; }
+
+    /* ---------- stat cards ---------- */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 1.75rem; }
+    .stat-card {
+        background: var(--surface); padding: 1.3rem 1.4rem; border-radius: var(--radius);
+        border: 1px solid var(--border); display: flex; align-items: center; gap: 1rem;
+    }
+    .stat-icon {
+        width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+        font-size: 1.05rem; flex-shrink: 0;
+    }
+    .stat-info .eyebrow { margin-bottom: 0.15rem; }
+    .stat-info p { font-size: 1.55rem; font-weight: 800; letter-spacing: -0.01em; }
+
+    /* ---------- layout grids ---------- */
+    .main-grid { display: grid; grid-template-columns: 340px 1fr; gap: 1.5rem; align-items: start; }
+    @media (max-width: 1100px) { .main-grid { grid-template-columns: 1fr; } }
+
+    .card { background: var(--surface); border-radius: var(--radius); box-shadow: 0 1px 2px rgba(15,23,42,0.04); border: 1px solid var(--border); overflow: hidden; }
+    .card-header { padding: 1.1rem 1.4rem; border-bottom: 1px solid var(--border); background: #fafbfc; display: flex; align-items: center; justify-content: space-between; }
+    .card-header h2 { font-size: 0.98rem; font-weight: 700; display: flex; align-items: center; gap: 0.55rem; }
+    .card-header h2 i { color: var(--primary); font-size: 0.92rem; }
+    .card-body { padding: 1.4rem; }
+
+    .form-group { margin-bottom: 1.1rem; }
+    label { display: block; margin-bottom: 0.4rem; font-size: 0.8rem; font-weight: 600; color: #475569; }
+    .input-wrapper { position: relative; }
+    .input-wrapper i { position: absolute; left: 0.9rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.85rem; }
+    input, select, textarea {
+        width: 100%; padding: 0.68rem 0.9rem 0.68rem 2.35rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem;
+        background: #fff; transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+    select { padding-left: 2.35rem; appearance: none; }
+    textarea.input-plain, input.input-plain { padding-left: 0.9rem; }
+
+    .btn { background: var(--primary); color: #fff; border: none; padding: 0.72rem 1.1rem; width: 100%;
+        border-radius: 8px; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+    .btn:hover { background: var(--primary-hover); }
+    .btn-secondary { background: #64748b; }
+    .btn-secondary:hover { background: #475569; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--dark); }
+    .btn-outline:hover { background: var(--bg); }
+
+    .search-container { padding: 0.9rem 1.4rem; background: #f8fafc; border-bottom: 1px solid var(--border); }
+    .search-wrapper { position: relative; max-width: 380px; }
+    .search-wrapper i { position: absolute; left: 0.9rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.87rem; }
+    th { background-color: #f8fafc; padding: 0.85rem 1.4rem; font-weight: 700; border-bottom: 2px solid var(--border); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; color: #64748b; }
+    td { padding: 0.85rem 1.4rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tbody tr:hover { background: #fafbfc; }
+    tbody tr:last-child td { border-bottom: none; }
+    .empty-row td { text-align: center; color: var(--text-muted); padding: 2.5rem 1rem; }
+
+    .badge { background: #e0f2fe; color: #0369a1; padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.74rem; font-weight: 600; display: inline-block; }
+    .badge-warn { background: #fef3c7; color: #92400e; }
+    .badge-danger { background: #fee2e2; color: #991b1b; }
+    .badge-muted { background: #f1f5f9; color: #64748b; }
+
+    .btn-action { width: auto; display: inline-flex; padding: 0.4rem 0.65rem; font-size: 0.82rem; border-radius: 6px; }
+    .btn-edit { background: var(--warning); margin-right: 0.3rem; }
+    .btn-edit:hover { background: #d97e06; }
+    .btn-delete { background: var(--danger); }
+    .btn-delete:hover { background: var(--danger-hover); }
+
+    /* ---------- checkout ---------- */
+    .checkout-grid { display: grid; grid-template-columns: 1fr 380px; gap: 1.5rem; align-items: start; }
+    @media (max-width: 1100px) { .checkout-grid { grid-template-columns: 1fr; } }
+    .product-pick-list { max-height: 560px; overflow-y: auto; }
+    .pick-row { display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 1.4rem; border-bottom: 1px solid var(--border); gap: 1rem; }
+    .pick-row:last-child { border-bottom: none; }
+    .pick-info .pick-name { font-weight: 600; font-size: 0.9rem; }
+    .pick-info .pick-meta { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.1rem; }
+    .pick-price { font-weight: 700; font-size: 0.92rem; white-space: nowrap; }
+    .btn-add-cart {
+        width: auto; background: var(--primary-light); color: var(--primary-hover); border: 1px solid #bfdbfe;
+        padding: 0.4rem 0.75rem; border-radius: 7px; font-size: 0.8rem; font-weight: 700; flex-shrink: 0;
+    }
+    .btn-add-cart:hover { background: var(--primary); color: #fff; }
+    .btn-add-cart:disabled { opacity: 0.4; cursor: not-allowed; background: var(--bg); color: var(--text-muted); border-color: var(--border); }
+
+    .cart-card { position: sticky; top: 0; }
+    .cart-list { max-height: 340px; overflow-y: auto; }
+    .cart-line { padding: 0.75rem 1.4rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0.6rem; }
+    .cart-line-name { flex: 1; min-width: 0; font-size: 0.85rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .qty-stepper { display: flex; align-items: center; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
+    .qty-stepper button { background: #f8fafc; border: none; width: 24px; height: 24px; font-weight: 700; color: var(--dark); }
+    .qty-stepper button:hover { background: var(--border); }
+    .qty-stepper span { width: 28px; text-align: center; font-size: 0.82rem; font-weight: 600; }
+    .cart-line-price { width: 58px; text-align: right; font-size: 0.85rem; font-weight: 700; }
+    .cart-remove { background: transparent; border: none; color: #cbd5e1; padding: 0 0.2rem; }
+    .cart-remove:hover { color: var(--danger); }
+    .cart-empty { padding: 2.5rem 1rem; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+    .cart-total-row { display: flex; align-items: baseline; justify-content: space-between; padding: 1.1rem 1.4rem; border-top: 2px solid var(--border); }
+    .cart-total-row .label { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
+    .cart-total-row .amount { font-size: 1.35rem; font-weight: 800; }
+    .checkout-actions { padding: 0 1.4rem 1.4rem; }
+    #saleSuccess {
+        margin: 0 1.4rem 1rem; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46;
+        border-radius: 8px; padding: 0.75rem 0.9rem; font-size: 0.83rem; display: none;
+    }
+
+    /* ---------- modal ---------- */
+    .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); align-items:center; justify-content:center; z-index: 1000; }
+    .modal.open { display: flex; }
+    .modal-content { background: white; border-radius: 14px; width: 100%; max-width: 560px; max-height: 82vh; overflow-y: auto; }
+    .modal-head { padding: 1.2rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .modal-head h3 { font-size: 1.02rem; font-weight: 700; }
+    .modal-close { background: transparent; border: none; color: var(--text-muted); font-size: 1.1rem; width: 30px; height: 30px; border-radius: 50%; }
+    .modal-close:hover { background: var(--bg); color: var(--dark); }
+    .modal-body { padding: 1.4rem 1.5rem; }
+
+    /* ---------- toast ---------- */
+    #toast {
+        position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 2000; display: flex; flex-direction: column; gap: 0.6rem;
+    }
+    .toast-msg {
+        background: var(--navy); color: #fff; padding: 0.8rem 1.1rem; border-radius: 9px; font-size: 0.85rem;
+        box-shadow: 0 10px 30px -8px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 0.6rem;
+        min-width: 220px; max-width: 340px; animation: toast-in 0.2s ease;
+    }
+    .toast-msg.error { background: #7f1d1d; }
+    .toast-msg.success { background: #064e3b; }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ---------- mobile: collapse sidebar into a top bar ---------- */
+    @media (max-width: 820px) {
+        body { overflow: auto; }
+        #appShell { flex-direction: column; height: auto; min-height: 100vh; }
+        .sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 0.8rem 1rem; overflow: visible; }
+        .sidebar-brand { padding: 0; margin-right: auto; }
+        .nav-list { flex-direction: row; flex-wrap: wrap; margin-top: 0; gap: 0.35rem; }
+        .nav-btn { width: auto; }
+        .nav-btn span.nav-label { display: inline; }
+        .sidebar-spacer { display: none; }
+        .user-card { border-top: none; padding-top: 0; margin-top: 0; }
+        .content { padding: 1.25rem; overflow-y: visible; }
+        .login-card { margin: 1rem; }
+    }
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN SCREEN ================= -->
+<div id="loginScreen">
+    <div class="login-card">
+        <div class="logo-mark">
+            <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="badgeGrad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0" stop-color="#3b82f6"/>
+                        <stop offset="1" stop-color="#1d4ed8"/>
+                    </linearGradient>
+                </defs>
+                <rect x="1" y="1" width="46" height="46" rx="13" fill="url(#badgeGrad)"/>
+                <path d="M15 20 Q24 8 33 20" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M12 20 L36 20 L32.5 37 Q32 39 30 39 L18 39 Q16 39 15.5 37 Z" fill="white" opacity="0.97"/>
+                <circle cx="19.5" cy="27" r="2.1" fill="#1d4ed8"/>
+                <circle cx="24" cy="29.5" r="2.3" fill="#1d4ed8"/>
+                <circle cx="28.5" cy="27" r="2.1" fill="#1d4ed8"/>
+            </svg>
+        </div>
+        <h1>MaxMart Operations</h1>
+        <p class="sub">Sign in to manage inventory and sales</p>
+
+        <div id="loginError"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="loginEmail">Email</label>
+                <div class="input-wrapper"><i class="fa-solid fa-envelope"></i><input type="email" id="loginEmail" required autocomplete="username"></div>
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">Password</label>
+                <div class="input-wrapper"><i class="fa-solid fa-lock"></i><input type="password" id="loginPassword" required autocomplete="current-password"></div>
+            </div>
+            <button type="submit" class="btn" id="loginBtn"><i class="fa-solid fa-right-to-bracket"></i> Sign In</button>
+        </form>
+
+        <p class="login-hint">Demo accounts (from seed.sql): <code>john.mngr@maxmart.com</code> or <code>jane.cash@maxmart.com</code> — password <code>password123</code>.</p>
+    </div>
+</div>
+
+<!-- ================= APP SHELL ================= -->
+<div id="appShell" class="hidden">
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="logo-mark">
+                <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="1" y="1" width="46" height="46" rx="13" fill="#1c2c4f"/>
+                    <path d="M15 20 Q24 8 33 20" fill="none" stroke="#60a5fa" stroke-width="2.4" stroke-linecap="round"/>
+                    <path d="M12 20 L36 20 L32.5 37 Q32 39 30 39 L18 39 Q16 39 15.5 37 Z" fill="#eff6ff" opacity="0.97"/>
+                    <circle cx="19.5" cy="27" r="2.1" fill="#2563eb"/>
+                    <circle cx="24" cy="29.5" r="2.3" fill="#2563eb"/>
+                    <circle cx="28.5" cy="27" r="2.1" fill="#2563eb"/>
+                </svg>
+            </div>
+            <div class="brand-text">
+                <h2>MaxMart</h2>
+                <p>Operations Engine</p>
+            </div>
+        </div>
+
+        <ul class="nav-list">
+            <li><button class="nav-btn active" data-tab="inventory"><i class="fa-solid fa-boxes-stacked"></i> Inventory</button></li>
+            <li><button class="nav-btn" data-tab="categories"><i class="fa-solid fa-layer-group"></i> Categories</button></li>
+            <li><button class="nav-btn" data-tab="suppliers"><i class="fa-solid fa-truck-field"></i> Suppliers</button></li>
+            <li><button class="nav-btn" data-tab="checkout"><i class="fa-solid fa-cash-register"></i> Checkout</button></li>
+            <li><button class="nav-btn" data-tab="sales"><i class="fa-solid fa-receipt"></i> Sales History</button></li>
+        </ul>
+
+        <div class="sidebar-spacer"></div>
+
+        <div class="user-card">
+            <div class="user-avatar" id="userAvatar">--</div>
+            <div class="user-meta">
+                <div class="u-name" id="userName">—</div>
+                <div class="u-role" id="userRole">—</div>
+            </div>
+            <button class="signout-btn" id="signOutBtn" title="Sign out"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+        </div>
+    </aside>
+
+    <main class="content">
+
+        <!-- ---------------- INVENTORY TAB ---------------- -->
+        <section class="tab-panel active" id="tab-inventory">
+            <div class="page-head">
+                <h1>Inventory</h1>
+                <p>Live product catalogue, synced directly with supermarket_db.</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:var(--primary-light); color:var(--primary);"><i class="fa-solid fa-tags"></i></div>
+                    <div class="stat-info"><div class="eyebrow">Catalog Items</div><p id="totalProductsCount" class="nums">0</p></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#ecfdf5; color:var(--success);"><i class="fa-solid fa-cubes"></i></div>
+                    <div class="stat-info"><div class="eyebrow">Cumulative Stock</div><p id="totalStockCount" class="nums">0</p></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#fffbeb; color:var(--warning);"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <div class="stat-info"><div class="eyebrow">Low Stock</div><p id="lowStockCount" class="nums">0</p></div>
+                </div>
+            </div>
+
+            <div class="main-grid">
+                <div class="card">
+                    <div class="card-header"><h2 id="productFormTitle"><i class="fa-solid fa-circle-plus"></i> Add New Product</h2></div>
+                    <div class="card-body">
+                        <form id="productForm">
+                            <input type="hidden" id="product_id">
+                            <div class="form-group">
+                                <label for="sku">SKU / Barcode</label>
+                                <div class="input-wrapper"><i class="fa-solid fa-barcode"></i><input type="text" id="sku" required></div>
+                            </div>
+                            <div class="form-group">
+                                <label for="product_name">Product Name</label>
+                                <div class="input-wrapper"><i class="fa-solid fa-tag"></i><input type="text" id="product_name" required></div>
+                            </div>
+                            <div class="form-group">
+                                <label for="category_id">Category</label>
+                                <div class="input-wrapper"><i class="fa-solid fa-layer-group"></i>
+                                    <select id="category_id" required></select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="supplier_id">Supplier <span style="color:var(--text-muted); font-weight:400;">(optional)</span></label>
+                                <div class="input-wrapper"><i class="fa-solid fa-truck-field"></i>
+                                    <select id="supplier_id"><option value="">— None —</option></select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="price">Unit Price ($)</label>
+                                <div class="input-wrapper"><i class="fa-solid fa-dollar-sign"></i><input type="number" id="price" step="0.01" min="0" required></div>
+                            </div>
+                            <div class="form-group">
+                                <label for="stock_quantity">Stock Quantity</label>
+                                <div class="input-wrapper"><i class="fa-solid fa-cubes"></i><input type="number" id="stock_quantity" min="0" required></div>
+                            </div>
+                            <div class="form-group">
+                                <label for="reorder_level">Reorder Level</label>
+                                <div class="input-wrapper"><i class="fa-solid fa-bell"></i><input type="number" id="reorder_level" min="0" value="10"></div>
+                            </div>
+                            <button type="submit" class="btn" id="productSubmitBtn"><i class="fa-solid fa-database"></i> Add Product</button>
+                            <button type="button" class="btn btn-secondary hidden" id="productCancelBtn" style="margin-top:0.5rem;">Cancel Edit</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h2><i class="fa-solid fa-list-check"></i> Live Inventory Records</h2></div>
+                    <div class="search-container">
+                        <div class="search-wrapper"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="productSearch" placeholder="Search catalog..."></div>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr><th>#</th><th>SKU</th><th>Product</th><th>Category</th><th>Supplier</th><th>Price</th><th>Stock</th><th>Actions</th></tr>
+                            </thead>
+                            <tbody id="productsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ---------------- CATEGORIES TAB ---------------- -->
+        <section class="tab-panel" id="tab-categories">
+            <div class="page-head">
+                <h1>Categories</h1>
+                <p>Departments used to group products on the shelf and in reports.</p>
+            </div>
+
+            <div class="main-grid">
+                <div class="card">
+                    <div class="card-header"><h2 id="categoryFormTitle"><i class="fa-solid fa-circle-plus"></i> Add Category</h2></div>
+                    <div class="card-body">
+                        <form id="categoryForm">
+                            <input type="hidden" id="edit_category_id">
+                            <div class="form-group">
+                                <label for="category_name">Category Name</label>
+                                <input class="input-plain" type="text" id="category_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="category_description">Description</label>
+                                <textarea class="input-plain" id="category_description" rows="3" placeholder="Optional"></textarea>
+                            </div>
+                            <button type="submit" class="btn" id="categorySubmitBtn"><i class="fa-solid fa-database"></i> Add Category</button>
+                            <button type="button" class="btn btn-secondary hidden" id="categoryCancelBtn" style="margin-top:0.5rem;">Cancel Edit</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h2><i class="fa-solid fa-layer-group"></i> All Categories</h2></div>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead><tr><th>Name</th><th>Description</th><th>Products</th><th>Actions</th></tr></thead>
+                            <tbody id="categoriesTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ---------------- SUPPLIERS TAB ---------------- -->
+        <section class="tab-panel" id="tab-suppliers">
+            <div class="page-head">
+                <h1>Suppliers</h1>
+                <p>External vendors MaxMart buys stock from.</p>
+            </div>
+
+            <div class="main-grid">
+                <div class="card">
+                    <div class="card-header"><h2 id="supplierFormTitle"><i class="fa-solid fa-circle-plus"></i> Add Supplier</h2></div>
+                    <div class="card-body">
+                        <form id="supplierForm">
+                            <input type="hidden" id="edit_supplier_id">
+                            <div class="form-group">
+                                <label for="company_name">Company Name</label>
+                                <input class="input-plain" type="text" id="company_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="contact_name">Contact Name <span style="color:var(--text-muted); font-weight:400;">(optional)</span></label>
+                                <input class="input-plain" type="text" id="contact_name">
+                            </div>
+                            <div class="form-group">
+                                <label for="supplier_phone">Phone</label>
+                                <input class="input-plain" type="text" id="supplier_phone" required>
+                            </div>
+                            <button type="submit" class="btn" id="supplierSubmitBtn"><i class="fa-solid fa-database"></i> Add Supplier</button>
+                            <button type="button" class="btn btn-secondary hidden" id="supplierCancelBtn" style="margin-top:0.5rem;">Cancel Edit</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h2><i class="fa-solid fa-truck-field"></i> All Suppliers</h2></div>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead><tr><th>Company</th><th>Contact</th><th>Phone</th><th>Products</th><th>Actions</th></tr></thead>
+                            <tbody id="suppliersTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ---------------- CHECKOUT TAB ---------------- -->
+        <section class="tab-panel" id="tab-checkout">
+            <div class="page-head">
+                <h1>Checkout</h1>
+                <p>Ring up a sale — stock is deducted automatically when the sale completes.</p>
+            </div>
+
+            <div class="checkout-grid">
+                <div class="card">
+                    <div class="search-container">
+                        <div class="search-wrapper"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="checkoutSearch" placeholder="Search products to add..."></div>
+                    </div>
+                    <div class="product-pick-list" id="productPickList"></div>
+                </div>
+
+                <div class="card cart-card">
+                    <div class="card-header"><h2><i class="fa-solid fa-cart-shopping"></i> Current Sale</h2></div>
+                    <div id="saleSuccess"></div>
+                    <div class="cart-list" id="cartList"></div>
+                    <div class="cart-total-row">
+                        <span class="label">Total</span>
+                        <span class="amount nums" id="cartTotal">$0.00</span>
+                    </div>
+                    <div class="checkout-actions">
+                        <button class="btn" id="completeSaleBtn"><i class="fa-solid fa-check"></i> Complete Sale</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ---------------- SALES HISTORY TAB ---------------- -->
+        <section class="tab-panel" id="tab-sales">
+            <div class="page-head">
+                <h1>Sales History</h1>
+                <p>Every completed order, tied to the staff member who processed it.</p>
+            </div>
+
+            <div class="card">
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead><tr><th>Order #</th><th>Date</th><th>Staff</th><th>Items</th><th>Total</th><th></th></tr></thead>
+                        <tbody id="ordersTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<!-- ================= ORDER DETAIL MODAL ================= -->
+<div class="modal" id="orderModal">
+    <div class="modal-content">
+        <div class="modal-head">
+            <h3 id="orderModalTitle">Order Details</h3>
+            <button class="modal-close" id="orderModalClose"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <table>
+                <thead><tr><th>Product</th><th>Qty</th><th>Unit Price</th><th>Subtotal</th></tr></thead>
+                <tbody id="orderModalBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+    const API_URL = 'api.php';
+
+    // ---------------- state ----------------
+    let currentStaff = null;
+    let productsCache = [];
+    let categoriesCache = [];
+    let suppliersCache = [];
+    let ordersCache = [];
+    let cart = [];               // [{product_id, product_name, unit_price, stock_quantity, quantity}]
+    let editingProductId = null;
+    let editingCategoryId = null;
+    let editingSupplierId = null;
+
+    // ---------------- helpers ----------------
+    async function api(action, { method = 'GET', body } = {}) {
+        const url = `${API_URL}?action=${action}`;
+        const opts = { method, credentials: 'include' };
+        if (body !== undefined) {
+            opts.headers = { 'Content-Type': 'application/json' };
+            opts.body = JSON.stringify(body);
+        }
+        const res = await fetch(url, opts);
+        let data;
+        try { data = await res.json(); }
+        catch { throw new Error('The server sent back something that was not valid JSON.'); }
+        if (data && data.error) throw new Error(data.error);
+        return data;
+    }
+
+    function toast(message, type = 'success') {
+        const container = document.getElementById('toast');
+        const el = document.createElement('div');
+        el.className = `toast-msg ${type}`;
+        el.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'}"></i><span>${escapeHtml(message)}</span>`;
+        container.appendChild(el);
+        setTimeout(() => el.remove(), 3800);
+    }
+
+    function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, s => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[s]));
+    }
+
+    function money(n) { return `$${parseFloat(n).toFixed(2)}`; }
+
+    function initials(first, last) {
+        return `${(first || '?')[0]}${(last || '?')[0]}`.toUpperCase();
+    }
+
+    // ================================================================
+    // AUTH
+    // ================================================================
+    async function checkSession() {
+        try {
+            const res = await api('me');
+            if (res.authenticated) {
+                enterApp(res.staff);
+            } else {
+                showLogin();
+            }
+        } catch {
+            showLogin();
+        }
+    }
+
+    function showLogin() {
+        document.getElementById('loginScreen').classList.remove('hidden');
+        document.getElementById('appShell').classList.add('hidden');
+    }
+
+    function enterApp(staff) {
+        currentStaff = staff;
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('appShell').classList.remove('hidden');
+        document.getElementById('userName').textContent = `${staff.first_name} ${staff.last_name}`;
+        document.getElementById('userRole').textContent = staff.role;
+        document.getElementById('userAvatar').textContent = initials(staff.first_name, staff.last_name);
+        loadEverything();
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const errorBox = document.getElementById('loginError');
+        errorBox.style.display = 'none';
+        const btn = document.getElementById('loginBtn');
+        btn.disabled = true;
+        try {
+            const res = await api('login', { method: 'POST', body: {
+                email: document.getElementById('loginEmail').value.trim(),
+                password: document.getElementById('loginPassword').value,
+            }});
+            document.getElementById('loginForm').reset();
+            enterApp(res.staff);
+        } catch (err) {
+            errorBox.textContent = err.message;
+            errorBox.style.display = 'block';
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    document.getElementById('signOutBtn').addEventListener('click', async () => {
+        try { await api('logout', { method: 'POST' }); } catch {}
+        currentStaff = null;
+        cart = [];
+        showLogin();
+    });
+
+    // ================================================================
+    // NAV / TABS
+    // ================================================================
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+        });
+    });
+
+    async function loadEverything() {
+        await Promise.all([fetchCategories(), fetchSuppliers()]);
+        await fetchProducts();
+        await fetchOrders();
+    }
+
+    // ================================================================
+    // INVENTORY
+    // ================================================================
+    async function fetchProducts() {
+        try {
+            productsCache = await api('get_products');
+            renderProductsTable(productsCache);
+            renderProductPickList(productsCache);
+            updateInventoryStats(productsCache);
+        } catch (err) { toast(err.message, 'error'); }
+    }
+
+    function updateInventoryStats(list) {
+        document.getElementById('totalProductsCount').textContent = list.length;
+        document.getElementById('totalStockCount').textContent = list.reduce((a, p) => a + parseInt(p.stock_quantity), 0);
+        document.getElementById('lowStockCount').textContent = list.filter(p => parseInt(p.stock_quantity) <= parseInt(p.reorder_level)).length;
+    }
+
+    function renderProductsTable(list) {
+        const tbody = document.getElementById('productsTableBody');
+        if (!list.length) {
+            tbody.innerHTML = `<tr class="empty-row"><td colspan="8">No products yet — add your first one on the left.</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = list.map((p, i) => {
+            const low = parseInt(p.stock_quantity) <= parseInt(p.reorder_level);
+            return `
+            <tr>
+                <td><strong>#${i + 1}</strong></td>
+                <td><code>${escapeHtml(p.sku)}</code></td>
+                <td><strong>${escapeHtml(p.product_name)}</strong></td>
+                <td><span class="badge">${escapeHtml(p.category_name)}</span></td>
+                <td>${p.supplier_name ? escapeHtml(p.supplier_name) : '<span class="badge badge-muted">Unassigned</span>'}</td>
+                <td class="nums">${money(p.price)}</td>
+                <td class="nums">${p.stock_quantity} ${low ? '<span class="badge badge-warn">Low</span>' : ''}</td>
+                <td>
+                    <button class="btn-action btn-edit" onclick="editProduct(${p.product_id})"><i class="fa-solid fa-pen"></i></button>
+                    <button class="btn-action btn-delete" onclick="deleteProduct(${p.product_id})"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function populateCategorySelect() {
+        const sel = document.getElementById('category_id');
+        sel.innerHTML = categoriesCache.map(c => `<option value="${c.category_id}">${escapeHtml(c.category_name)}</option>`).join('');
+    }
+    function populateSupplierSelect() {
+        const sel = document.getElementById('supplier_id');
+        sel.innerHTML = `<option value="">— None —</option>` + suppliersCache.map(s => `<option value="${s.supplier_id}">${escapeHtml(s.company_name)}</option>`).join('');
+    }
+
+    window.editProduct = function (id) {
+        const p = productsCache.find(x => x.product_id == id);
+        if (!p) return;
+        editingProductId = id;
+        document.getElementById('product_id').value = p.product_id;
+        document.getElementById('sku').value = p.sku;
+        document.getElementById('product_name').value = p.product_name;
+        document.getElementById('category_id').value = p.category_id;
+        document.getElementById('supplier_id').value = p.supplier_id || '';
+        document.getElementById('price').value = p.price;
+        document.getElementById('stock_quantity').value = p.stock_quantity;
+        document.getElementById('reorder_level').value = p.reorder_level;
+        document.getElementById('productFormTitle').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color:var(--warning)"></i> Update Product';
+        document.getElementById('productSubmitBtn').innerHTML = '<i class="fa-solid fa-square-check"></i> Save Changes';
+        document.getElementById('productCancelBtn').classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    function resetProductForm() {
+        editingProductId = null;
+        document.getElementById('productForm').reset();
+        document.getElementById('product_id').value = '';
+        document.getElementById('reorder_level').value = 10;
+        document.getElementById('productFormTitle').innerHTML = '<i class="fa-solid fa-circle-plus"></i> Add New Product';
+        document.getElementById('productSubmitBtn').innerHTML = '<i class="fa-solid fa-database"></i> Add Product';
+        document.getElementById('productCancelBtn').classList.add('hidden');
+    }
+    document.getElementById('productCancelBtn').addEventListener('click', resetProductForm);
+
+    document.getElementById('productForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = {
+            sku: document.getElementById('sku').value,
+            product_name: document.getElementById('product_name').value,
+            category_id: document.getElementById('category_id').value,
+            supplier_id: document.getElementById('supplier_id').value,
+            price: document.getElementById('price').value,
+            stock_quantity: document.getElementById('stock_quantity').value,
+            reorder_level: document.getElementById('reorder_level').value,
+        };
+        try {
+            if (editingProductId) {
+                payload.product_id = editingProductId;
+                await api('update_product', { method: 'POST', body: payload });
+                toast('Product updated.');
+            } else {
+                await api('add_product', { method: 'POST', body: payload });
+                toast('Product added.');
+            }
+            resetProductForm();
+            fetchProducts();
+        } catch (err) { toast(err.message, 'error'); }
+    });
+
+    window.deleteProduct = async function (id) {
+        if (!confirm('Remove this product from the catalogue?')) return;
+        try {
+            await api('delete_product', { method: 'POST', body: { product_id: id } });
+            toast('Product removed.');
+            fetchProducts();
+        } catch (err) { toast(err.message, 'error'); }
+    };
+
+    document.getElementById('productSearch').addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase().trim();
+        renderProductsTable(productsCache.filter(p => p.product_name.toLowerCase().includes(term) || p.sku.toLowerCase().includes(term)));
+    });
+
+    // ================================================================
+    // CATEGORIES
+    // ================================================================
+    async function fetchCategories() {
+        try {
+            categoriesCache = await api('get_categories');
+            renderCategoriesTable();
+            populateCategorySelect();
+        } catch (err) { toast(err.message, 'error'); }
+    }
+
+    function renderCategoriesTable() {
+        const tbody = document.getElementById('categoriesTableBody');
+        if (!categoriesCache.length) {
+            tbody.innerHTML = `<tr class="empty-row"><td colspan="4">No categories yet.</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = categoriesCache.map(c => `
+            <tr>
+                <td><strong>${escapeHtml(c.category_name)}</strong></td>
+                <td style="color:var(--text-muted);">${c.description ? escapeHtml(c.description) : '—'}</td>
+                <td class="nums">${c.product_count}</td>
+                <td>
+                    <button class="btn-action btn-edit" onclick="editCategory(${c.category_id})"><i class="fa-solid fa-pen"></i></button>
+                    <button class="btn-action btn-delete" onclick="deleteCategory(${c.category_id})"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>`).join('');
+    }
+
+    window.editCategory = function (id) {
+        const c = categoriesCache.find(x => x.category_id == id);
+        if (!c) return;
+        editingCategoryId = id;
+        document.getElementById('edit_category_id').value = c.category_id;
+        document.getElementById('category_name').value = c.category_name;
+        document.getElementById('category_description').value = c.description || '';
+        document.getElementById('categoryFormTitle').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color:var(--warning)"></i> Update Category';
+        document.getElementById('categorySubmitBtn').innerHTML = '<i class="fa-solid fa-square-check"></i> Save Changes';
+        document.getElementById('categoryCancelBtn').classList.remove('hidden');
+    };
+
+    function resetCategoryForm() {
+        editingCategoryId = null;
+        document.getElementById('categoryForm').reset();
+        document.getElementById('edit_category_id').value = '';
+        document.getElementById('categoryFormTitle').innerHTML = '<i class="fa-solid fa-circle-plus"></i> Add Category';
+        document.getElementById('categorySubmitBtn').innerHTML = '<i class="fa-solid fa-database"></i> Add Category';
+        document.getElementById('categoryCancelBtn').classList.add('hidden');
+    }
+    document.getElementById('categoryCancelBtn').addEventListener('click', resetCategoryForm);
+
+    document.getElementById('categoryForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = {
+            category_name: document.getElementById('category_name').value,
+            description: document.getElementById('category_description').value,
+        };
+        try {
+            if (editingCategoryId) {
+                payload.category_id = editingCategoryId;
+                await api('update_category', { method: 'POST', body: payload });
+                toast('Category updated.');
+            } else {
+                await api('add_category', { method: 'POST', body: payload });
+                toast('Category added.');
+            }
+            resetCategoryForm();
+            fetchCategories();
+        } catch (err) { toast(err.message, 'error'); }
+    });
+
+    window.deleteCategory = async function (id) {
+        if (!confirm('Delete this category?')) return;
+        try {
+            await api('delete_category', { method: 'POST', body: { category_id: id } });
+            toast('Category removed.');
+            fetchCategories();
+        } catch (err) { toast(err.message, 'error'); }
+    };
+
+    // ================================================================
+    // SUPPLIERS
+    // ================================================================
+    async function fetchSuppliers() {
+        try {
+            suppliersCache = await api('get_suppliers');
+            renderSuppliersTable();
+            populateSupplierSelect();
+        } catch (err) { toast(err.message, 'error'); }
+    }
+
+    function renderSuppliersTable() {
+        const tbody = document.getElementById('suppliersTableBody');
+        if (!suppliersCache.length) {
+            tbody.innerHTML = `<tr class="empty-row"><td colspan="5">No suppliers yet.</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = suppliersCache.map(s => `
+            <tr>
+                <td><strong>${escapeHtml(s.company_name)}</strong></td>
+                <td style="color:var(--text-muted);">${s.contact_name ? escapeHtml(s.contact_name) : '—'}</td>
+                <td>${escapeHtml(s.phone)}</td>
+                <td class="nums">${s.product_count}</td>
+                <td>
+                    <button class="btn-action btn-edit" onclick="editSupplier(${s.supplier_id})"><i class="fa-solid fa-pen"></i></button>
+                    <button class="btn-action btn-delete" onclick="deleteSupplier(${s.supplier_id})"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>`).join('');
+    }
+
+    window.editSupplier = function (id) {
+        const s = suppliersCache.find(x => x.supplier_id == id);
+        if (!s) return;
+        editingSupplierId = id;
+        document.getElementById('company_name').value = s.company_name;
+        document.getElementById('contact_name').value = s.contact_name || '';
+        document.getElementById('supplier_phone').value = s.phone;
+        document.getElementById('edit_supplier_id').value = s.supplier_id;
+        document.getElementById('supplierFormTitle').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color:var(--warning)"></i> Update Supplier';
+        document.getElementById('supplierSubmitBtn').innerHTML = '<i class="fa-solid fa-square-check"></i> Save Changes';
+        document.getElementById('supplierCancelBtn').classList.remove('hidden');
+    };
+
+    function resetSupplierForm() {
+        editingSupplierId = null;
+        document.getElementById('supplierForm').reset();
+        document.getElementById('edit_supplier_id').value = '';
+        document.getElementById('supplierFormTitle').innerHTML = '<i class="fa-solid fa-circle-plus"></i> Add Supplier';
+        document.getElementById('supplierSubmitBtn').innerHTML = '<i class="fa-solid fa-database"></i> Add Supplier';
+        document.getElementById('supplierCancelBtn').classList.add('hidden');
+    }
+    document.getElementById('supplierCancelBtn').addEventListener('click', resetSupplierForm);
+
+    document.getElementById('supplierForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = {
+            company_name: document.getElementById('company_name').value,
+            contact_name: document.getElementById('contact_name').value,
+            phone: document.getElementById('supplier_phone').value,
+        };
+        try {
+            if (editingSupplierId) {
+                payload.supplier_id = editingSupplierId;
+                await api('update_supplier', { method: 'POST', body: payload });
+                toast('Supplier updated.');
+            } else {
+                await api('add_supplier', { method: 'POST', body: payload });
+                toast('Supplier added.');
+            }
+            resetSupplierForm();
+            fetchSuppliers();
+        } catch (err) { toast(err.message, 'error'); }
+    });
+
+    window.deleteSupplier = async function (id) {
+        if (!confirm('Delete this supplier?')) return;
+        try {
+            await api('delete_supplier', { method: 'POST', body: { supplier_id: id } });
+            toast('Supplier removed.');
+            fetchSuppliers();
+            fetchProducts();
+        } catch (err) { toast(err.message, 'error'); }
+    };
+
+    // ================================================================
+    // CHECKOUT
+    // ================================================================
+    function renderProductPickList(list) {
+        const container = document.getElementById('productPickList');
+        if (!list.length) {
+            container.innerHTML = `<div class="cart-empty">No products in the catalogue yet.</div>`;
+            return;
+        }
+        container.innerHTML = list.map(p => `
+            <div class="pick-row">
+                <div class="pick-info">
+                    <div class="pick-name">${escapeHtml(p.product_name)}</div>
+                    <div class="pick-meta">${escapeHtml(p.sku)} · ${p.stock_quantity} in stock</div>
+                </div>
+                <div class="pick-price nums">${money(p.price)}</div>
+                <button class="btn-add-cart" onclick="addToCart(${p.product_id})" ${p.stock_quantity <= 0 ? 'disabled' : ''}>
+                    <i class="fa-solid fa-plus"></i> Add
+                </button>
+            </div>`).join('');
+    }
+
+    document.getElementById('checkoutSearch').addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase().trim();
+        renderProductPickList(productsCache.filter(p => p.product_name.toLowerCase().includes(term) || p.sku.toLowerCase().includes(term)));
+    });
+
+    window.addToCart = function (productId) {
+        const p = productsCache.find(x => x.product_id == productId);
+        if (!p) return;
+        const existing = cart.find(c => c.product_id == productId);
+        const currentQty = existing ? existing.quantity : 0;
+        if (currentQty + 1 > p.stock_quantity) {
+            toast(`Only ${p.stock_quantity} unit(s) of "${p.product_name}" in stock.`, 'error');
+            return;
+        }
+        if (existing) {
+            existing.quantity += 1;
+        } else {
+            cart.push({ product_id: p.product_id, product_name: p.product_name, unit_price: parseFloat(p.price), stock_quantity: p.stock_quantity, quantity: 1 });
+        }
+        renderCart();
+    };
+
+    window.changeCartQty = function (productId, delta) {
+        const line = cart.find(c => c.product_id == productId);
+        if (!line) return;
+        const next = line.quantity + delta;
+        if (next <= 0) {
+            cart = cart.filter(c => c.product_id != productId);
+        } else if (next > line.stock_quantity) {
+            toast(`Only ${line.stock_quantity} unit(s) of "${line.product_name}" in stock.`, 'error');
+            return;
+        } else {
+            line.quantity = next;
+        }
+        renderCart();
+    };
+
+    window.removeFromCart = function (productId) {
+        cart = cart.filter(c => c.product_id != productId);
+        renderCart();
+    };
+
+    function renderCart() {
+        const list = document.getElementById('cartList');
+        if (!cart.length) {
+            list.innerHTML = `<div class="cart-empty">Cart is empty — add products from the left.</div>`;
+        } else {
+            list.innerHTML = cart.map(c => `
+                <div class="cart-line">
+                    <div class="cart-line-name">${escapeHtml(c.product_name)}</div>
+                    <div class="qty-stepper">
+                        <button type="button" onclick="changeCartQty(${c.product_id}, -1)">−</button>
+                        <span>${c.quantity}</span>
+                        <button type="button" onclick="changeCartQty(${c.product_id}, 1)">+</button>
+                    </div>
+                    <div class="cart-line-price nums">${money(c.unit_price * c.quantity)}</div>
+                    <button type="button" class="cart-remove" onclick="removeFromCart(${c.product_id})"><i class="fa-solid fa-xmark"></i></button>
+                </div>`).join('');
+        }
+        const total = cart.reduce((a, c) => a + c.unit_price * c.quantity, 0);
+        document.getElementById('cartTotal').textContent = money(total);
+    }
+
+    document.getElementById('completeSaleBtn').addEventListener('click', async () => {
+        if (!cart.length) { toast('Add at least one product first.', 'error'); return; }
+        const btn = document.getElementById('completeSaleBtn');
+        btn.disabled = true;
+        try {
+            const res = await api('create_order', {
+                method: 'POST',
+                body: { items: cart.map(c => ({ product_id: c.product_id, quantity: c.quantity })) },
+            });
+            const successBox = document.getElementById('saleSuccess');
+            successBox.style.display = 'block';
+            successBox.innerHTML = `<i class="fa-solid fa-circle-check"></i> Sale #${res.order_id} completed — ${money(res.total_amount)} total.`;
+            setTimeout(() => { successBox.style.display = 'none'; }, 5000);
+            cart = [];
+            renderCart();
+            await fetchProducts();
+            await fetchOrders();
+        } catch (err) {
+            toast(err.message, 'error');
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    // ================================================================
+    // SALES HISTORY
+    // ================================================================
+    async function fetchOrders() {
+        try {
+            ordersCache = await api('get_orders');
+            renderOrdersTable();
+        } catch (err) { toast(err.message, 'error'); }
+    }
+
+    function renderOrdersTable() {
+        const tbody = document.getElementById('ordersTableBody');
+        if (!ordersCache.length) {
+            tbody.innerHTML = `<tr class="empty-row"><td colspan="6">No sales recorded yet.</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = ordersCache.map(o => `
+            <tr>
+                <td><strong>#${o.order_id}</strong></td>
+                <td>${new Date(o.order_date).toLocaleString()}</td>
+                <td>${escapeHtml(o.staff_name)}</td>
+                <td class="nums">${o.item_count}</td>
+                <td class="nums">${money(o.total_amount)}</td>
+                <td><button class="btn-action btn-outline" style="background:var(--bg);" onclick="viewOrder(${o.order_id})"><i class="fa-solid fa-eye"></i> View</button></td>
+            </tr>`).join('');
+    }
+
+    window.viewOrder = async function (orderId) {
+        try {
+            const items = await api(`get_order_items&order_id=${orderId}`);
+            document.getElementById('orderModalTitle').textContent = `Order #${orderId}`;
+            document.getElementById('orderModalBody').innerHTML = items.map(it => `
+                <tr>
+                    <td>${escapeHtml(it.product_name)}</td>
+                    <td class="nums">${it.quantity}</td>
+                    <td class="nums">${money(it.unit_price)}</td>
+                    <td class="nums">${money(it.subtotal)}</td>
+                </tr>`).join('');
+            document.getElementById('orderModal').classList.add('open');
+        } catch (err) { toast(err.message, 'error'); }
+    };
+    document.getElementById('orderModalClose').addEventListener('click', () => document.getElementById('orderModal').classList.remove('open'));
+    document.getElementById('orderModal').addEventListener('click', (e) => {
+        if (e.target.id === 'orderModal') e.target.classList.remove('open');
+    });
+
+    // ---------------- boot ----------------
+    checkSession();
+</script>
+</body>
+</html>
